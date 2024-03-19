@@ -1,0 +1,52 @@
+[project]
+name = "claspin"
+version = "0.0.1"
+description = "A catalog of metrics for DevOps engineers"
+authors = [
+    {name = "Vincent Primault"},
+]
+dependencies = [
+    "pydantic>=2.6.4",
+    "PyYAML>=6.0.1",
+]
+requires-python = ">=3.11,<3.13"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+cli = [
+    "click>=8.1.7",
+]
+prometheus = [
+    "promql-parser>=0.3.3",
+]
+db = [
+    "opendal>=0.45.1",
+]
+plot = [
+    "PythonMonkey>=0.4.0",
+]
+
+[project.scripts]
+claspin = "claspin.cli:main"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ruff>=0.4.0",
+]
