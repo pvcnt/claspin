@@ -1,3 +1,3 @@
-from claspin.cli.main import main
+from claspin.cli.cli import cli
 
-__all__ = ["main"]
+__all__ = ["cli"]
