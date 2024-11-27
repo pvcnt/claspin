@@ -1,4 +1,5 @@
 from abc import ABC
+from enum import StrEnum, unique
 
 import yaml
 from fastapi.encoders import jsonable_encoder
@@ -10,25 +11,38 @@ NEGATIVE_INFINITY = float("-inf")
 POSITIVE_INFINITY = float("+inf")
 
 
-class BaseModel(_BaseModel):
+class BaseModel(_BaseModel, ABC):
     model_config = ConfigDict(
         extra="forbid",
         alias_generator=to_camel,
         populate_by_name=True,
     )
 
-    def model_dump_yaml(self) -> str:
+    def model_dump_yaml(self, indent: int | None = None) -> str:
         # jsonable_encoder ensures that the representation is identical to
         # the one provided by FastAPI.
-        return yaml.dump(jsonable_encoder(self))
+        return yaml.dump(jsonable_encoder(self), indent=indent)
 
 
 class Attrs(BaseModel, ABC):
     pass
 
 
+@unique
+class Kind(StrEnum):
+    project = "Project"
+    datasource = "Datasource"
+    variable = "Variable"
+    query = "Query"
+
+    @property
+    def namespaced(self) -> bool:
+        return self != Kind.project
+
+
 class Metadata(BaseModel):
     name: str
+    project: str | None = None
 
 
 class Plugin(Attrs, ABC):

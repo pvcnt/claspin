@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Self, Union
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, model_validator
 
-from claspin.model.common import BaseModel, Metadata, Plugin
+from claspin.model.common import BaseModel, Kind, Metadata, Plugin
 from claspin.model.datasource import DatasourcePlugin
+from claspin.model.project import DEFAULT_PROJECT
 from claspin.model.query import QueryContext
 
 
@@ -61,6 +62,12 @@ VariableSpec = Annotated[
 
 
 class Variable(BaseModel):
-    kind: Literal["Variable"] = "Variable"
+    kind: Literal[Kind.variable] = Kind.variable
     metadata: Metadata
     spec: VariableSpec
+
+    @model_validator(mode="after")
+    def set_default_namespace(self) -> Self:
+        if self.metadata.project is None:
+            self.metadata.project = DEFAULT_PROJECT.metadata.name
+        return self

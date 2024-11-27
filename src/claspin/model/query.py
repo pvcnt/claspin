@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, model_validator
 
-from claspin.model.common import BaseModel, Metadata, Plugin
+from claspin.model.common import BaseModel, Kind, Metadata, Plugin
 from claspin.model.datasource import DatasourcePlugin
+from claspin.model.project import DEFAULT_PROJECT
 
 
 class QueryContext[T: DatasourcePlugin](BaseModel):
@@ -60,6 +61,12 @@ QuerySpec = TimeSeriesQuery
 
 
 class Query(BaseModel):
-    kind: Literal["Query"] = "Query"
+    kind: Literal[Kind.query] = Kind.query
     metadata: Metadata
     spec: QuerySpec
+
+    @model_validator(mode="after")
+    def set_default_namespace(self) -> Self:
+        if self.metadata.project is None:
+            self.metadata.project = DEFAULT_PROJECT.metadata.name
+        return self

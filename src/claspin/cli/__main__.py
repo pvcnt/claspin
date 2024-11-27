@@ -1,4 +1,4 @@
-from claspin.cli.cli import cli
+from claspin.cli.app import app
 
 if __name__ == "__main__":
-    cli()
+    app()

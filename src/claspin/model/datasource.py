@@ -1,9 +1,10 @@
 from abc import ABC
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import computed_field
+from pydantic import computed_field, model_validator
 
-from claspin.model.common import BaseModel, Metadata, Plugin
+from claspin.model.common import BaseModel, Kind, Metadata, Plugin
+from claspin.model.project import DEFAULT_PROJECT
 
 
 class DatasourcePlugin(Plugin, ABC):
@@ -25,6 +26,12 @@ class DatasourceSpec(BaseModel):
 
 
 class Datasource(BaseModel):
-    kind: Literal["Datasource"] = "Datasource"
+    kind: Literal[Kind.datasource] = Kind.datasource
     metadata: Metadata
     spec: DatasourceSpec
+
+    @model_validator(mode="after")
+    def set_default_namespace(self) -> Self:
+        if self.metadata.project is None:
+            self.metadata.project = DEFAULT_PROJECT.metadata.name
+        return self

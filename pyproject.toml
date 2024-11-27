@@ -10,10 +10,10 @@ dependencies = [
     "PyYAML>=6.0.1",
     "starlark-pyo3>=2024.1.4",
     "httpx>=0.27.2",
-    "click>=8.1.7",
     "pytz>=2024.2",
     "fastapi>=0.115.5",
     "uvicorn[standard]>=0.32.1",
+    "typer>=0.13.1",
 ]
 requires-python = ">=3.12,<3.13"
 readme = "README.md"
@@ -41,7 +41,7 @@ plot = [
 ]
 
 [project.scripts]
-claspin = "claspin.cli:cli"
+claspin = "claspin.cli:app"
 
 [build-system]
 requires = ["pdm-backend"]

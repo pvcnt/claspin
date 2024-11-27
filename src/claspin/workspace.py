@@ -41,28 +41,31 @@ class Workspace:
     def add_extension(self, extension: Extension) -> None:
         self._extensions[extension.name] = extension
 
-    def parse(self):
-        for filepath in self._collect_files():
-            self._load_file(f"//{filepath}")
+    def load(self):
+        for target in self._collect_targets():
+            self._load_file(target)
 
     def lint(self) -> list[sl.Lint]:
         result: list[sl.Lint] = []
-        for filepath in self._collect_files():
-            ast = sl.parse(str(filepath), filepath.read_text())
+        for target in self._collect_targets():
+            ast = self._parse_file(target)
             result.extend(ast.lint())
         return result
 
-    def _load_file(self, name: str) -> sl.FrozenModule:
+    def _parse_file(self, name: str) -> sl.AstModule:
         if name.startswith("//"):
             filepath = self.root_dir.joinpath(name[2:])
             if not filepath.is_file():
                 raise FileNotFoundError(name)
-            ast = sl.parse(name, filepath.read_text())
-            module = self._create_module()
-            sl.eval(module, ast, self._globals, self._file_loader)
-            return module.freeze()
+            return sl.parse(name, filepath.read_text())
         else:
             raise ValueError(f"Invalid label: '{name}'")
+
+    def _load_file(self, name: str) -> sl.FrozenModule:
+        ast = self._parse_file(name)
+        module = self._create_module()
+        sl.eval(module, ast, self._globals, self._file_loader)
+        return module.freeze()
 
     def _create_module(self) -> sl.Module:
         module = sl.Module()
@@ -126,10 +129,10 @@ class Workspace:
         obj = {k: v for k, v in props.items() if k in typ.model_fields}
         return typ.model_validate(obj)
 
-    def _collect_files(self) -> Iterable[Path]:
+    def _collect_targets(self) -> Iterable[str]:
         for filepath in self.root_dir.iterdir():
             if filepath.suffix == ".star":
-                yield filepath.relative_to(self.root_dir)
+                yield f"//{filepath.relative_to(self.root_dir)}"
 
 
 def create_workspace(root_dir: Path) -> Workspace:
