@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Tuple
+from typing import Sequence, Tuple, Union
 
 import httpx
 from pydantic import BaseModel
@@ -75,10 +75,13 @@ class PrometheusClient:
         self,
         start: datetime,
         end: datetime,
-        match: str | None = None,
+        match: list[str] | None = None,
         limit: int | None = None,
     ) -> list[str]:
-        params = {"start": str(start.timestamp()), "end": str(end.timestamp())}
+        params: dict[str, Union[str, Sequence[str]]] = {
+            "start": str(start.timestamp()),
+            "end": str(end.timestamp()),
+        }
         if match is not None:
             params["match"] = match
         if limit is not None:
@@ -92,10 +95,13 @@ class PrometheusClient:
         label: str,
         start: datetime,
         end: datetime,
-        match: str | None = None,
+        match: list[str] | None = None,
         limit: int | None = None,
     ) -> list[str]:
-        params = {"start": str(start.timestamp()), "end": str(end.timestamp())}
+        params: dict[str, Union[str, Sequence[str]]] = {
+            "start": str(start.timestamp()),
+            "end": str(end.timestamp()),
+        }
         if match is not None:
             params["match"] = match
         if limit is not None:

@@ -105,7 +105,7 @@ async def test_label_names_with_match(client: PrometheusClient, httpx_mock: HTTP
     )
 
     await client.label_names(
-        start=datetime(2024, 11, 24, 0), end=datetime(2024, 11, 24, 1), match="up"
+        start=datetime(2024, 11, 24, 0), end=datetime(2024, 11, 24, 1), match=["up"]
     )
 
 
@@ -147,7 +147,7 @@ async def test_label_values_with_match(client: PrometheusClient, httpx_mock: HTT
         label="service.name",
         start=datetime(2024, 11, 24, 0),
         end=datetime(2024, 11, 24, 1),
-        match="up",
+        match=["up"],
     )
 
 

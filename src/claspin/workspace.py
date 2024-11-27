@@ -1,61 +1,49 @@
 from functools import partial
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Type
 
 import starlark as sl
 
-from claspin.model import Resource
-from claspin.model.common import Metadata
+from claspin.database import Database
+from claspin.model.common import BaseModel, Metadata
 from claspin.model.datasource import (
     Datasource,
     DatasourcePlugin,
-    DatasourcePluginModel,
+    DatasourcePluginDefinition,
     DatasourceSpec,
 )
-from claspin.model.query import Query, QueryPlugin, QueryPluginModel, QuerySpec
-from claspin.plugins import DATASOURCE_PLUGINS, QUERY_PLUGINS
+from claspin.model.query import (
+    Query,
+    TimeSeriesQuery,
+    TimeSeriesQueryPlugin,
+    TimeSeriesQueryPluginDefinition,
+    TimeSeriesQuerySpec,
+)
+from claspin.model.variable import (
+    ListVariable,
+    ListVariablePlugin,
+    ListVariablePluginDefinition,
+    ListVariableSpec,
+    Variable,
+)
+from claspin.plugins import BUILTIN_EXTENSIONS
+from claspin.plugins.interface import Extension
 
 
 class Workspace:
     def __init__(self, root_dir: Path) -> None:
         self.root_dir = root_dir
-        self._datasources: dict[str, Datasource] = {}
-        self._datasource_plugins: list[type[DatasourcePlugin]] = []
-        self._queries: dict[str, Query] = {}
-        self._query_plugins: list[type[QueryPlugin]] = []
+        self.db = Database()
+        self._extensions: dict[str, Extension] = {}
         self._globals = sl.Globals.standard()
+        self._file_loader = sl.FileLoader(self._load_file)
 
-    def add_datasource_plugin(self, plugin: type[DatasourcePlugin]) -> None:
-        self._datasource_plugins.append(plugin)
-
-    def add_query_plugin(self, plugin: type[QueryPlugin]) -> None:
-        self._query_plugins.append(plugin)
-
-    @property
-    def datasources(self) -> Iterable[Datasource]:
-        return self._datasources.values()
-
-    def get_datasource(self, name: str) -> Datasource | None:
-        return self._datasources.get(name)
-
-    @property
-    def queries(self) -> Iterable[Query]:
-        return self._queries.values()
-
-    def get_query(self, name: str) -> Query | None:
-        return self._queries.get(name)
-
-    @property
-    def resources(self) -> Iterable[Resource]:
-        for seq in (self.datasources, self.queries):
-            yield from seq
+    def add_extension(self, extension: Extension) -> None:
+        self._extensions[extension.name] = extension
 
     def parse(self):
-        file_loader = sl.FileLoader(self._load)
         for filepath in self._collect_files():
-            module = self._create_module()
-            ast = sl.parse(str(filepath), filepath.read_text())
-            sl.eval(module, ast, self._globals, file_loader)
+            self._load_file(f"//{filepath}")
 
     def lint(self) -> list[sl.Lint]:
         result: list[sl.Lint] = []
@@ -64,61 +52,88 @@ class Workspace:
             result.extend(ast.lint())
         return result
 
-    def _load(self, name: str) -> sl.FrozenModule:
-        filepath = self.root_dir.joinpath(name)
-        if filepath.is_file():
+    def _load_file(self, name: str) -> sl.FrozenModule:
+        if name.startswith("//"):
+            filepath = self.root_dir.joinpath(name[2:])
+            if not filepath.is_file():
+                raise FileNotFoundError(name)
             ast = sl.parse(name, filepath.read_text())
             module = self._create_module()
-            sl.eval(module, ast, self._globals)
+            sl.eval(module, ast, self._globals, self._file_loader)
             return module.freeze()
         else:
-            raise FileNotFoundError(name)
+            raise ValueError(f"Invalid label: '{name}'")
 
     def _create_module(self) -> sl.Module:
         module = sl.Module()
 
-        def datasource_factory(plugin: type[DatasourcePlugin], name: str, attrs: dict):
-            datasource = Datasource(
-                metadata=Metadata(name=name),
-                spec=DatasourceSpec(
-                    plugin=DatasourcePluginModel(
-                        kind=plugin.kind(), spec=plugin.model_validate(attrs)
-                    )
-                ),
-            )
-            self._datasources[name] = datasource
+        def datasource_factory(plugin: type[DatasourcePlugin], name: str, props: dict):
+            plugin_def = DatasourcePluginDefinition(spec=self._model_validate(plugin, props))
+            spec = self._model_validate(DatasourceSpec, props | {"plugin": plugin_def})
+            datasource = Datasource(metadata=Metadata(name=name), spec=spec)
+            self.db.save(datasource)
 
-        for plugin in self._datasource_plugins:
-            module.add_callable(
-                plugin.method_name(), partial(datasource_factory, plugin)
-            )
+        for extension in self._extensions.values():
+            for plugin in extension.datasource_plugins:
+                module.add_callable(
+                    plugin.method_name(),
+                    partial(datasource_factory, plugin),
+                )
 
-        def query_factory(plugin: type[QueryPlugin], name: str, attrs: dict):
+        def time_series_query_factory(
+            plugin: type[TimeSeriesQueryPlugin],
+            name: str,
+            props: dict,
+        ):
+            plugin_def = TimeSeriesQueryPluginDefinition(spec=self._model_validate(plugin, props))
+            spec = self._model_validate(TimeSeriesQuerySpec, props | {"plugin": plugin_def})
             query = Query(
                 metadata=Metadata(name=name),
-                spec=QuerySpec(
-                    plugin=QueryPluginModel(
-                        kind=plugin.kind(), spec=plugin.model_validate(attrs)
-                    )
-                ),
+                spec=TimeSeriesQuery(spec=spec),
             )
-            self._queries[name] = query
+            self.db.save(query)
 
-        for plugin in self._query_plugins:
-            module.add_callable(plugin.method_name(), partial(query_factory, plugin))
+        for extension in self._extensions.values():
+            for plugin in extension.time_series_query_plugins:
+                module.add_callable(
+                    plugin.method_name(),
+                    partial(time_series_query_factory, plugin),
+                )
+
+        def list_variable_factory(
+            plugin: type[ListVariablePlugin],
+            name: str,
+            props: dict,
+        ):
+            plugin_def = ListVariablePluginDefinition(spec=self._model_validate(plugin, props))
+            spec = self._model_validate(ListVariableSpec, props | {"plugin": plugin_def})
+            variable = Variable(
+                metadata=Metadata(name=name),
+                spec=ListVariable(spec=spec),
+            )
+            self.db.save(variable)
+
+        for extension in self._extensions.values():
+            for plugin in extension.list_variable_plugins:
+                module.add_callable(
+                    plugin.method_name(),
+                    partial(list_variable_factory, plugin),
+                )
 
         return module
+
+    def _model_validate[T: BaseModel](self, typ: Type[T], props: dict) -> T:
+        obj = {k: v for k, v in props.items() if k in typ.model_fields}
+        return typ.model_validate(obj)
 
     def _collect_files(self) -> Iterable[Path]:
         for filepath in self.root_dir.iterdir():
             if filepath.suffix == ".star":
-                yield filepath
+                yield filepath.relative_to(self.root_dir)
 
 
 def create_workspace(root_dir: Path) -> Workspace:
     workspace = Workspace(root_dir)
-    for plugin in DATASOURCE_PLUGINS:
-        workspace.add_datasource_plugin(plugin)
-    for plugin in QUERY_PLUGINS:
-        workspace.add_query_plugin(plugin)
+    for extension in BUILTIN_EXTENSIONS:
+        workspace.add_extension(extension)
     return workspace

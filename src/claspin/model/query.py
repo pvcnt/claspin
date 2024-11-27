@@ -1,67 +1,62 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Annotated, Literal, Sequence, Union
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, computed_field
 
 from claspin.model.common import BaseModel, Metadata, Plugin
 from claspin.model.datasource import DatasourcePlugin
 
 
-class BaseColumn[T](BaseModel, ABC):
-    name: str
-    values: Sequence[T | None] = Field(default_factory=list)
-
-
-class IntColumn(BaseColumn[int]):
-    data_type: Literal["int"] = "int"
-
-
-class FloatColumn(BaseColumn[float]):
-    data_type: Literal["float"] = "float"
-
-
-class StringColumn(BaseColumn[str]):
-    data_type: Literal["string"] = "string"
-
-
-class BoolColumn(BaseColumn[bool]):
-    data_type: Literal["bool"] = "bool"
-
-
-class TimeColumn(BaseColumn[datetime]):
-    data_type: Literal["time"] = "time"
-
-
-Column = Annotated[
-    Union[IntColumn, FloatColumn, StringColumn, BoolColumn, TimeColumn],
-    Field(discriminator="data_type"),
-]
-
-
-class DataFrame(BaseModel):
-    columns: Sequence[Column]
-
-
-class QueryContext(BaseModel):
+class QueryContext[T: DatasourcePlugin](BaseModel):
     start: datetime
     end: datetime
     suggested_step: timedelta
+    datasource: T
 
 
-class QueryPlugin[T: DatasourcePlugin](Plugin, ABC):
+class LineData(BaseModel):
+    metric: str
+    points: dict[datetime, float]
+    labels: dict[str, str] = Field(default_factory=dict)
+
+    @property
+    def title(self) -> str:
+        labels = "{" + ", ".join(f"{k}={v}" for k, v in self.labels.items()) + "}" if self.labels else ""
+        return self.metric + labels
+
+
+class TimeSeriesData(BaseModel):
+    lines: list[LineData]
+    step: timedelta
+    url: str | None = None
+
+
+class TimeSeriesQueryPlugin[T: DatasourcePlugin](Plugin, ABC):
     @abstractmethod
-    async def query(self, ds: T, ctx: QueryContext) -> DataFrame:
+    async def query(self, ctx: QueryContext[T]) -> TimeSeriesData:
         raise NotImplementedError()
 
 
-class QueryPluginModel[T: QueryPlugin](BaseModel):
-    kind: str
+class TimeSeriesQueryPluginDefinition[T: TimeSeriesQueryPlugin](BaseModel):
     spec: T
 
+    @computed_field
+    @property
+    def kind(self) -> str:
+        return self.spec.kind()
 
-class QuerySpec(BaseModel):
-    plugin: QueryPluginModel
+
+class TimeSeriesQuerySpec(BaseModel):
+    plugin: TimeSeriesQueryPluginDefinition
+
+
+class TimeSeriesQuery(BaseModel):
+    kind: Literal["TimeSeriesQuery"] = "TimeSeriesQuery"
+    spec: TimeSeriesQuerySpec
+
+
+QuerySpec = TimeSeriesQuery
 
 
 class Query(BaseModel):

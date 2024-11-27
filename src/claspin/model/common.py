@@ -12,7 +12,9 @@ POSITIVE_INFINITY = float("+inf")
 
 class BaseModel(_BaseModel):
     model_config = ConfigDict(
-        extra="forbid", alias_generator=to_camel, populate_by_name=True
+        extra="forbid",
+        alias_generator=to_camel,
+        populate_by_name=True,
     )
 
     def model_dump_yaml(self) -> str:

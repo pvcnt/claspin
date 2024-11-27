@@ -50,12 +50,7 @@ build-backend = "pdm.backend"
 [tool.pdm]
 distribution = true
 
-[tool.pytest.ini_options]
-addopts = """
---asyncio-mode=auto
-"""
-
-[dependency-groups]
+[tool.pdm.dev-dependencies]
 dev = [
     "ruff>=0.4.0",
     "pytest>=8.3.3",
@@ -64,3 +59,18 @@ dev = [
     "pyright>=1.1.389",
     "pytest-httpx>=0.34.0",
 ]
+
+[tool.pytest.ini_options]
+addopts = """
+--asyncio-mode=auto
+"""
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "A", "Q", "COM", "G", "D"]
+ignore = ["A002", "A003", "D100", "D101", "D102", "D103", "D104", "D105", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

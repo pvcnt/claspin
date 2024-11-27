@@ -1,6 +1,8 @@
 from abc import ABC
 from typing import Literal
 
+from pydantic import computed_field
+
 from claspin.model.common import BaseModel, Metadata, Plugin
 
 
@@ -9,13 +11,17 @@ class DatasourcePlugin(Plugin, ABC):
         pass
 
 
-class DatasourcePluginModel[T: DatasourcePlugin](BaseModel):
-    kind: str
+class DatasourcePluginDefinition[T: DatasourcePlugin](BaseModel):
     spec: T
+
+    @computed_field
+    @property
+    def kind(self) -> str:
+        return self.spec.kind()
 
 
 class DatasourceSpec(BaseModel):
-    plugin: DatasourcePluginModel
+    plugin: DatasourcePluginDefinition
 
 
 class Datasource(BaseModel):

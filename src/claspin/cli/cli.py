@@ -27,7 +27,20 @@ def validate() -> None:
 def export(root_dir: Path) -> None:
     workspace = create_workspace(root_dir)
     workspace.parse()
-    click.echo("\n---\n".join(ent.model_dump_yaml() for ent in workspace.resources))
+    click.echo("\n---\n".join(ent.model_dump_yaml() for ent in workspace.db.resources))
+
+
+@click.option(
+    "--workspace",
+    "-w",
+    "root_dir",
+    required=True,
+    type=click.Path(exists=True, path_type=Path),
+)
+@cli.command(name="import")
+def import_cmd(root_dir: Path) -> None:
+    workspace = create_workspace(root_dir)
+    workspace.parse()
 
 
 @click.option(
