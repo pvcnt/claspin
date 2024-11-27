@@ -35,7 +35,7 @@ class TimeSeriesData(BaseModel):
 
 class TimeSeriesQueryPlugin[T: DatasourcePlugin](Plugin, ABC):
     @abstractmethod
-    async def query(self, ctx: QueryContext[T]) -> TimeSeriesData:
+    async def fetch(self, ctx: QueryContext[T]) -> TimeSeriesData:
         raise NotImplementedError()
 
 

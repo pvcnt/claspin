@@ -18,14 +18,10 @@ class BaseModel(_BaseModel, ABC):
         populate_by_name=True,
     )
 
-    def model_dump_yaml(self, indent: int | None = None) -> str:
+    def model_dump_yaml(self, exclude_unset: bool = False, indent: int | None = None) -> str:
         # jsonable_encoder ensures that the representation is identical to
         # the one provided by FastAPI.
-        return yaml.dump(jsonable_encoder(self), indent=indent)
-
-
-class Attrs(BaseModel, ABC):
-    pass
+        return yaml.dump(jsonable_encoder(self, exclude_unset=exclude_unset), indent=indent)
 
 
 @unique
@@ -45,7 +41,13 @@ class Metadata(BaseModel):
     project: str | None = None
 
 
-class Plugin(Attrs, ABC):
+class Display(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    hidden: bool = False
+
+
+class Plugin(BaseModel, ABC):
     @classmethod
     def kind(cls) -> str:
         return cls.__name__

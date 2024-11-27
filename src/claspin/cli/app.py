@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 import uvicorn
 
+from claspin.config.parser import ConfigParser
 from claspin.format import OutputFormat, dump_resource_stream
 from claspin.webapp.app import make_webapp
 from claspin.workspace import create_workspace
@@ -14,8 +15,9 @@ app = typer.Typer()
 @app.command()
 def validate(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
     workspace = create_workspace(root_dir)
-    workspace.load()
-    print(f"Loaded {sum(1 for _ in workspace.db.resources)} resources")
+    parser = ConfigParser(workspace)
+    parser.load()
+    print(f"Successfully loaded {sum(1 for _ in workspace.db.resources)} resources")
 
 
 @app.command()
@@ -24,20 +26,23 @@ def export(
     output_format: Annotated[OutputFormat, typer.Option("--output", "-o")] = OutputFormat.yaml,
 ) -> None:
     workspace = create_workspace(root_dir)
-    workspace.load()
+    parser = ConfigParser(workspace)
+    parser.load()
     print(dump_resource_stream(workspace.db.resources, output_format, indent=2))
 
 
 @app.command("import")
 def import_cmd(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
     workspace = create_workspace(root_dir)
-    workspace.load()
+    parser = ConfigParser(workspace)
+    parser.load()
 
 
 @app.command()
 def lint(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
     workspace = create_workspace(root_dir)
-    for lint in workspace.lint():
+    parser = ConfigParser(workspace)
+    for lint in parser.lint():
         print(f"[{lint.severity}] {lint}")
 
 
@@ -48,6 +53,7 @@ def serve(
     port: int = 8080,
 ) -> None:
     workspace = create_workspace(root_dir)
-    workspace.load()
+    parser = ConfigParser(workspace)
+    parser.load()
     webapp = make_webapp(workspace)
     uvicorn.run(webapp, host=host, port=port)

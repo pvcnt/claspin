@@ -12,9 +12,9 @@ class OutputFormat(StrEnum):
 
 def dump_resource(resource: Resource, format: OutputFormat, indent: int | None = None) -> str:
     if format == OutputFormat.json:
-        return resource.model_dump_json(indent=indent)
+        return resource.model_dump_json(exclude_unset=True, indent=indent)
     elif format == OutputFormat.yaml:
-        return resource.model_dump_yaml(indent=indent)
+        return resource.model_dump_yaml(exclude_unset=True, indent=indent)
     else:
         raise AssertionError()
 

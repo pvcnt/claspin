@@ -3,7 +3,7 @@ from typing import Annotated, Literal, Self, Union
 
 from pydantic import Field, computed_field, model_validator
 
-from claspin.model.common import BaseModel, Kind, Metadata, Plugin
+from claspin.model.common import BaseModel, Display, Kind, Metadata, Plugin
 from claspin.model.datasource import DatasourcePlugin
 from claspin.model.project import DEFAULT_PROJECT
 from claspin.model.query import QueryContext
@@ -32,6 +32,7 @@ class ListVariablePluginDefinition[T: ListVariablePlugin](BaseModel):
 class ListVariableSpec(BaseModel):
     plugin: ListVariablePluginDefinition
     name: str | None = None
+    display: Display = Field(default_factory=Display)
     default_value: str | list[str] | None = None
     allow_all_value: bool = False
     allow_multiple: bool = False
@@ -47,6 +48,7 @@ class ListVariable(BaseModel):
 class TextVariableSpec(BaseModel):
     value: str
     name: str | None = None
+    display: Display = Field(default_factory=Display)
     constant: bool = False
 
 
