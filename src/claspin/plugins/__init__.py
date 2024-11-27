@@ -1,6 +1,16 @@
-from typing import Tuple
+from typing import Tuple, Type
 
-from claspin.plugins.interface import Extension
-from claspin.plugins.prometheus.extension import PrometheusExtension
+from claspin.model.common import Plugin
+from claspin.plugins.prometheus.datasource import PrometheusDatasource
+from claspin.plugins.prometheus.query import (
+    PrometheusLabelNamesVariable,
+    PrometheusLabelValuesVariable,
+    PrometheusPromqlQuery,
+)
 
-BUILTIN_EXTENSIONS: Tuple[Extension] = (PrometheusExtension(),)
+BUILTIN_PLUGINS: Tuple[Type[Plugin], ...] = (
+    PrometheusDatasource,
+    PrometheusLabelNamesVariable,
+    PrometheusLabelValuesVariable,
+    PrometheusPromqlQuery,
+)

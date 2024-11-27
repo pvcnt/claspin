@@ -1,34 +1,10 @@
-from datetime import datetime, timedelta
-from functools import cached_property
+from datetime import datetime
 
 import pytz
 
-from claspin.model.datasource import DatasourcePlugin
 from claspin.model.query import LineData, QueryContext, TimeSeriesData, TimeSeriesQueryPlugin
 from claspin.model.variable import ListVariableData, ListVariablePlugin
-from claspin.plugins.interface import Extension
-from claspin.plugins.prometheus.client import PrometheusClient
-
-
-class PrometheusDatasource(DatasourcePlugin):
-    url: str
-    username: str | None = None
-    password: str | None = None
-    headers: dict[str, str] | None = None
-    timeout: timedelta = timedelta(seconds=60)
-
-    @cached_property
-    def client(self) -> PrometheusClient:
-        auth = (self.username, self.password) if self.username is not None and self.password is not None else None
-        return PrometheusClient(
-            url=self.url.rstrip("/"),
-            auth=auth,
-            headers=self.headers,
-            timeout=self.timeout,
-        )
-
-    async def close(self) -> None:
-        await self.client.close()
+from claspin.plugins.prometheus.datasource import PrometheusDatasource
 
 
 class PrometheusPromqlQuery(TimeSeriesQueryPlugin[PrometheusDatasource]):
@@ -82,13 +58,3 @@ class PrometheusLabelValuesVariable(ListVariablePlugin[PrometheusDatasource]):
             limit=self.limit,
         )
         return ListVariableData(values={v: v for v in values})
-
-
-class PrometheusExtension(Extension):
-    name = "prometheus"
-    plugins = (
-        PrometheusDatasource,
-        PrometheusPromqlQuery,
-        PrometheusLabelNamesVariable,
-        PrometheusLabelValuesVariable,
-    )

@@ -5,7 +5,7 @@ from typing import Iterable, Type
 import starlark as sl
 
 from claspin.database import Database
-from claspin.model.common import BaseModel, Metadata
+from claspin.model.common import BaseModel, Metadata, Plugin
 from claspin.model.datasource import (
     Datasource,
     DatasourcePlugin,
@@ -26,20 +26,19 @@ from claspin.model.variable import (
     ListVariableSpec,
     Variable,
 )
-from claspin.plugins import BUILTIN_EXTENSIONS
-from claspin.plugins.interface import Extension
+from claspin.plugins import BUILTIN_PLUGINS
 
 
 class Workspace:
     def __init__(self, root_dir: Path) -> None:
         self.root_dir = root_dir
         self.db = Database()
-        self._extensions: dict[str, Extension] = {}
+        self._plugins: list[Type[Plugin]] = []
         self._globals = sl.Globals.standard()
         self._file_loader = sl.FileLoader(self._load_file)
 
-    def add_extension(self, extension: Extension) -> None:
-        self._extensions[extension.name] = extension
+    def add_plugin(self, plugin: Type[Plugin]) -> None:
+        self._plugins.append(plugin)
 
     def load(self):
         for target in self._collect_targets():
@@ -76,12 +75,11 @@ class Workspace:
             datasource = Datasource(metadata=Metadata(name=name), spec=spec)
             self.db.save(datasource)
 
-        for extension in self._extensions.values():
-            for plugin in extension.datasource_plugins:
-                module.add_callable(
-                    plugin.method_name(),
-                    partial(datasource_factory, plugin),
-                )
+        for plugin in self._datasource_plugins:
+            module.add_callable(
+                plugin.method_name(),
+                partial(datasource_factory, plugin),
+            )
 
         def time_series_query_factory(
             plugin: type[TimeSeriesQueryPlugin],
@@ -96,12 +94,11 @@ class Workspace:
             )
             self.db.save(query)
 
-        for extension in self._extensions.values():
-            for plugin in extension.time_series_query_plugins:
-                module.add_callable(
-                    plugin.method_name(),
-                    partial(time_series_query_factory, plugin),
-                )
+        for plugin in self._time_series_query_plugins:
+            module.add_callable(
+                plugin.method_name(),
+                partial(time_series_query_factory, plugin),
+            )
 
         def list_variable_factory(
             plugin: type[ListVariablePlugin],
@@ -116,12 +113,11 @@ class Workspace:
             )
             self.db.save(variable)
 
-        for extension in self._extensions.values():
-            for plugin in extension.list_variable_plugins:
-                module.add_callable(
-                    plugin.method_name(),
-                    partial(list_variable_factory, plugin),
-                )
+        for plugin in self._list_variable_plugins:
+            module.add_callable(
+                plugin.method_name(),
+                partial(list_variable_factory, plugin),
+            )
 
         return module
 
@@ -134,9 +130,21 @@ class Workspace:
             if filepath.suffix == ".star":
                 yield f"//{filepath.relative_to(self.root_dir)}"
 
+    @property
+    def _datasource_plugins(self) -> list[Type[DatasourcePlugin]]:
+        return [v for v in self._plugins if issubclass(v, DatasourcePlugin)]
+
+    @property
+    def _time_series_query_plugins(self) -> list[Type[TimeSeriesQueryPlugin]]:
+        return [v for v in self._plugins if issubclass(v, TimeSeriesQueryPlugin)]
+
+    @property
+    def _list_variable_plugins(self) -> list[Type[ListVariablePlugin]]:
+        return [v for v in self._plugins if issubclass(v, ListVariablePlugin)]
+
 
 def create_workspace(root_dir: Path) -> Workspace:
     workspace = Workspace(root_dir)
-    for extension in BUILTIN_EXTENSIONS:
-        workspace.add_extension(extension)
+    for plugin in BUILTIN_PLUGINS:
+        workspace.add_plugin(plugin)
     return workspace
