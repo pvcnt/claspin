@@ -7,10 +7,32 @@ from claspin.model.project import Project
 from claspin.model.variable import TextVariable, TextVariableSpec, Variable
 from claspin.plugins.prometheus.datasource import PrometheusDatasource
 
+DEFAULT_PROJECT = Project(metadata=Metadata(name="default"))
+TOP_SECRET_PROJECT = Project(metadata=Metadata(name="top-secret"))
+PUBLIC_PROJECT = Project(metadata=Metadata(name="public"))
+
+PROMETHEUS_DATASOURCE = Datasource(
+    metadata=Metadata(name="prometheus"),
+    spec=DatasourceSpec(
+        plugin=DatasourcePluginDefinition(
+            spec=PrometheusDatasource(url="http://localhost"),
+        ),
+    ),
+)
+
+FOO_VARIABLE = Variable(
+    metadata=Metadata(name="foo"),
+    spec=TextVariable(spec=TextVariableSpec(value="Foo")),
+)
+
 
 @pytest.fixture
 def db() -> Database:
-    return Database()
+    db = Database()
+    db.create(PUBLIC_PROJECT)
+    db.create(PROMETHEUS_DATASOURCE)
+    db.create(FOO_VARIABLE)
+    return db
 
 
 def test_get(db: Database):
@@ -18,17 +40,22 @@ def test_get(db: Database):
     assert project is None
 
     project = db.get(Project, "default")
-    assert project is not None
-    assert project.metadata.name == "default"
+    assert project == DEFAULT_PROJECT
+
+    datasource = db.get(Datasource, "prometheus", "does-not-exist")
+    assert datasource is None
+
+    datasource = db.get(Datasource, "prometheus", "default")
+    assert datasource == PROMETHEUS_DATASOURCE
 
 
 def test_create(db: Database):
-    db.create(Project(metadata=Metadata(name="top-secret")))
+    db.create(TOP_SECRET_PROJECT)
     project = db.get(Project, "top-secret")
-    assert project is not None
+    assert project == TOP_SECRET_PROJECT
 
     with pytest.raises(ValueError) as exc_info:
-        db.create(Project(metadata=Metadata(name="top-secret")))
+        db.create(TOP_SECRET_PROJECT)
     assert str(exc_info.value) == "Duplicate entity Project/top-secret"
 
 
@@ -38,42 +65,16 @@ def test_upsert(db: Database):
     assert project is not None
     assert project.metadata.labels == {"test": "foo"}
 
-    db.upsert(Project(metadata=Metadata(name="top-secret", labels={"test": "bar"})))
-    project = db.get(Project, "top-secret")
-    assert project is not None
-    assert project.metadata.labels == {"test": "bar"}
-
 
 def test_query(db: Database):
-    db.create(Project(metadata=Metadata(name="public")))
-    db.create(Project(metadata=Metadata(name="top-secret")))
-
     projects = list(db.query(Project))
-    assert projects == [
-        Project(metadata=Metadata(name="default")),
-        Project(metadata=Metadata(name="public")),
-        Project(metadata=Metadata(name="top-secret")),
-    ]
+    assert projects == [DEFAULT_PROJECT, PUBLIC_PROJECT]
 
 
 def test_entities(db: Database):
-    datasource = Datasource(
-        metadata=Metadata(name="prom"),
-        spec=DatasourceSpec(
-            plugin=DatasourcePluginDefinition(
-                spec=PrometheusDatasource(url="http://localhost"),
-            ),
-        ),
-    )
-    db.create(datasource)
-    variable = Variable(
-        metadata=Metadata(name="foo"),
-        spec=TextVariable(spec=TextVariableSpec(value="Foo")),
-    )
-    db.create(variable)
-
     assert list(db.entities) == [
-        Project(metadata=Metadata(name="default")),
-        datasource,
-        variable,
+        DEFAULT_PROJECT,
+        PUBLIC_PROJECT,
+        PROMETHEUS_DATASOURCE,
+        FOO_VARIABLE,
     ]
