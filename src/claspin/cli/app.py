@@ -4,20 +4,18 @@ from typing import Annotated
 import typer
 import uvicorn
 
-from claspin.config.parser import ConfigParser
 from claspin.format import OutputFormat, dump_resource_stream
+from claspin.runtime import Runtime
 from claspin.webapp.app import make_webapp
-from claspin.workspace import create_workspace
 
 app = typer.Typer()
 
 
 @app.command()
 def validate(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
-    workspace = create_workspace(root_dir)
-    parser = ConfigParser(workspace)
-    parser.load()
-    print(f"Successfully loaded {sum(1 for _ in workspace.db.resources)} resources")
+    runtime = Runtime(root_dir)
+    runtime.eval_and_load()
+    print(f"Successfully loaded {sum(1 for _ in runtime.db.entities)} resources")
 
 
 @app.command()
@@ -25,24 +23,20 @@ def export(
     root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")],
     output_format: Annotated[OutputFormat, typer.Option("--output", "-o")] = OutputFormat.yaml,
 ) -> None:
-    workspace = create_workspace(root_dir)
-    parser = ConfigParser(workspace)
-    parser.load()
-    print(dump_resource_stream(workspace.db.resources, output_format, indent=2))
+    runtime = Runtime(root_dir)
+    runtime.eval_and_load()
+    print(dump_resource_stream(runtime.db.entities, output_format, indent=2))
 
 
-@app.command("import")
-def import_cmd(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
-    workspace = create_workspace(root_dir)
-    parser = ConfigParser(workspace)
-    parser.load()
+@app.command("migrate")
+def migrate(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
+    pass
 
 
 @app.command()
 def lint(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
-    workspace = create_workspace(root_dir)
-    parser = ConfigParser(workspace)
-    for lint in parser.lint():
+    runtime = Runtime(root_dir)
+    for lint in runtime.parser.lint():
         print(f"[{lint.severity}] {lint}")
 
 
@@ -52,8 +46,7 @@ def serve(
     host: str = "127.0.0.1",
     port: int = 8080,
 ) -> None:
-    workspace = create_workspace(root_dir)
-    parser = ConfigParser(workspace)
-    parser.load()
-    webapp = make_webapp(workspace)
+    runtime = Runtime(root_dir)
+    runtime.eval_and_load()
+    webapp = make_webapp(runtime)
     uvicorn.run(webapp, host=host, port=port)
