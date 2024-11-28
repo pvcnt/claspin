@@ -17,6 +17,8 @@ class Database:
 
     def create(self, entity: Entity) -> None:
         key = self._make_key(entity)
+        if key in self._entities[entity.kind()]:
+            raise ValueError(f"Duplicate entity {entity.kind()}/{key}")
         self._entities[entity.kind()][key] = entity
 
     def upsert(self, entity: Entity) -> None:

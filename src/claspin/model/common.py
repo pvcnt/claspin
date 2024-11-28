@@ -4,7 +4,7 @@ from typing import Self
 import yaml
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel as _BaseModel
-from pydantic import ConfigDict, computed_field, model_validator
+from pydantic import ConfigDict, Field, computed_field, model_validator
 from pydantic.alias_generators import to_camel, to_snake
 
 NEGATIVE_INFINITY = float("-inf")
@@ -24,6 +24,7 @@ class BaseModel(_BaseModel, ABC):
 class Metadata(BaseModel):
     name: str
     project: str | None = None
+    labels: dict[str, str] = Field(default_factory=dict)
 
 
 class Display(BaseModel):
