@@ -14,17 +14,17 @@ app = typer.Typer()
 @app.command()
 def validate(root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")]) -> None:
     runtime = Runtime(root_dir)
-    runtime.eval_and_load()
+    runtime.parser.eval()
     print(f"Successfully loaded {sum(1 for _ in runtime.db.entities)} resources")
 
 
 @app.command()
 def export(
     root_dir: Annotated[Path, typer.Option(..., "--workspace", "-w")],
-    output_format: Annotated[OutputFormat, typer.Option("--output", "-o")] = OutputFormat.yaml,
+    output_format: Annotated[OutputFormat, typer.Option("--output", "-o")] = OutputFormat.YAML,
 ) -> None:
     runtime = Runtime(root_dir)
-    runtime.eval_and_load()
+    runtime.parser.eval()
     print(dump_resource_stream(runtime.db.entities, output_format, indent=2))
 
 
@@ -47,6 +47,6 @@ def serve(
     port: int = 8080,
 ) -> None:
     runtime = Runtime(root_dir)
-    runtime.eval_and_load()
+    runtime.parser.eval()
     webapp = make_webapp(runtime)
     uvicorn.run(webapp, host=host, port=port)

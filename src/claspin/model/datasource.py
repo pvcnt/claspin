@@ -1,22 +1,16 @@
 from abc import ABC
 
-from pydantic import computed_field
-
-from claspin.model.common import BaseModel, Entity, Plugin
+from claspin.model.common import BaseModel, Entity
 
 
-class DatasourcePlugin(Plugin, ABC):
-    async def close(self) -> None:
-        pass
+class DatasourceSelector(BaseModel, ABC):
+    kind: str
+    name: str | None = None
 
 
-class DatasourcePluginDefinition[T: DatasourcePlugin](BaseModel):
+class DatasourcePluginDefinition[T: BaseModel](BaseModel):
+    kind: str
     spec: T
-
-    @computed_field
-    @property
-    def kind(self) -> str:
-        return self.spec.kind()
 
 
 class DatasourceSpec(BaseModel):
@@ -25,3 +19,6 @@ class DatasourceSpec(BaseModel):
 
 class Datasource(Entity):
     spec: DatasourceSpec
+
+    def matches(self, selector: DatasourceSelector) -> bool:
+        return self.kind() == selector.kind and (selector.name is None or selector.name == self.metadata.name)

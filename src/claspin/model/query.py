@@ -1,50 +1,11 @@
-from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
 from typing import Literal
 
-from pydantic import Field, computed_field
-
-from claspin.model.common import BaseModel, Entity, Plugin
-from claspin.model.datasource import DatasourcePlugin
+from claspin.model.common import BaseModel, Entity
 
 
-class QueryContext[T: DatasourcePlugin](BaseModel):
-    start: datetime
-    end: datetime
-    suggested_step: timedelta
-    datasource: T
-
-
-class LineData(BaseModel):
-    metric: str
-    points: dict[datetime, float]
-    labels: dict[str, str] = Field(default_factory=dict)
-
-    @property
-    def title(self) -> str:
-        labels = "{" + ", ".join(f"{k}={v}" for k, v in self.labels.items()) + "}" if self.labels else ""
-        return self.metric + labels
-
-
-class TimeSeriesData(BaseModel):
-    lines: list[LineData]
-    step: timedelta
-    url: str | None = None
-
-
-class TimeSeriesQueryPlugin[T: DatasourcePlugin](Plugin, ABC):
-    @abstractmethod
-    async def fetch(self, ctx: QueryContext[T]) -> TimeSeriesData:
-        raise NotImplementedError()
-
-
-class TimeSeriesQueryPluginDefinition[T: TimeSeriesQueryPlugin](BaseModel):
+class TimeSeriesQueryPluginDefinition[T: BaseModel](BaseModel):
+    kind: str
     spec: T
-
-    @computed_field
-    @property
-    def kind(self) -> str:
-        return self.spec.kind()
 
 
 class TimeSeriesQuerySpec(BaseModel):

@@ -1,31 +1,30 @@
-from abc import ABC, abstractmethod
+from enum import StrEnum, unique
 from typing import Annotated, Literal, Union
 
-from pydantic import Field, computed_field
+from pydantic import Field
 
-from claspin.model.common import BaseModel, Display, Entity, Plugin
-from claspin.model.datasource import DatasourcePlugin
-from claspin.model.query import QueryContext
+from claspin.model.common import BaseModel, Display, Entity
 
 
-class ListVariableData(BaseModel):
-    values: dict[str, str]
-    url: str | None = None
+class LabelValue(BaseModel):
+    value: str
+    label: str | None = None
 
 
-class ListVariablePlugin[T: DatasourcePlugin](Plugin, ABC):
-    @abstractmethod
-    async def fetch(self, ctx: QueryContext[T]) -> ListVariableData:
-        raise NotImplementedError()
-
-
-class ListVariablePluginDefinition[T: ListVariablePlugin](BaseModel):
+class ListVariablePluginDefinition[T: BaseModel](BaseModel):
+    kind: str
     spec: T
 
-    @computed_field
-    @property
-    def kind(self) -> str:
-        return self.spec.kind()
+
+@unique
+class VariableSort(StrEnum):
+    NONE = "none"
+    ALPHABETICAL_ASC = "alphabetical-asc"
+    ALPHABETICAL_DESC = "alphabetical-desc"
+    NUMERICAL_ASC = "numerical-asc"
+    NUMERICAL_DESC = "numerical-desc"
+    ALPHABETICAL_CI_ASC = "alphabetical-ci-asc"
+    ALPHABETICAL_CI_DESC = "alphabetical-ci-desc"
 
 
 class ListVariableSpec(BaseModel):
@@ -37,6 +36,7 @@ class ListVariableSpec(BaseModel):
     allow_multiple: bool = False
     custom_all_value: str | None = None
     capturing_regexp: str | None = None
+    sort: VariableSort = VariableSort.NONE
 
 
 class ListVariable(BaseModel):

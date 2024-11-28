@@ -18,3 +18,7 @@ text_variable(
 prometheus_label_names_variable("bar", {"matchers": ["up"]})
 
 prometheus_label_values_variable("bar", {"label_name": "service.name"})
+
+prometheus_promql_query("up", {"query": "up"})
+
+stat_chart("stat", {"calculation": "mean"}, ["up"])

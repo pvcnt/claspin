@@ -91,3 +91,6 @@ exclude_lines = [
     "if __name__ == .__main__.",
     "@abstractmethod",
 ]
+
+[tool.pyright]
+include = ["src"]

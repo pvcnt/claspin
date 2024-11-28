@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
-from typing import AsyncIterator
+from typing import Iterator
 
 import pytest
 from pytest_httpx import HTTPXMock
 
-from claspin.plugins.prometheus.client import (
+from claspin.plugins.prometheus import (
     PrometheusClient,
     RangeQueryData,
     RangeVector,
@@ -12,13 +12,13 @@ from claspin.plugins.prometheus.client import (
 
 
 @pytest.fixture
-async def client() -> AsyncIterator[PrometheusClient]:
+def client() -> Iterator[PrometheusClient]:
     client = PrometheusClient(url="http://localhost")
     yield client
-    await client.close()
+    client.close()
 
 
-async def test_range_query(client: PrometheusClient, httpx_mock: HTTPXMock):
+def test_range_query(client: PrometheusClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://localhost/api/v1/query_range",
         method="POST",
@@ -42,7 +42,7 @@ async def test_range_query(client: PrometheusClient, httpx_mock: HTTPXMock):
         },
     )
 
-    data = await client.range_query(
+    data = client.range_query(
         query="up",
         start=datetime(2024, 11, 24, 0),
         end=datetime(2024, 11, 24, 1),
@@ -62,8 +62,9 @@ async def test_range_query(client: PrometheusClient, httpx_mock: HTTPXMock):
     )
 
 
-async def test_range_query_with_timeout(
-    client: PrometheusClient, httpx_mock: HTTPXMock,
+def test_range_query_with_timeout(
+    client: PrometheusClient,
+    httpx_mock: HTTPXMock,
 ):
     httpx_mock.add_response(
         url="http://localhost/api/v1/query_range",
@@ -75,7 +76,7 @@ async def test_range_query_with_timeout(
         json={"data": {"result": []}},
     )
 
-    await client.range_query(
+    client.range_query(
         query="up",
         start=datetime(2024, 11, 24, 0),
         end=datetime(2024, 11, 24, 1),
@@ -84,51 +85,56 @@ async def test_range_query_with_timeout(
     )
 
 
-async def test_label_names(client: PrometheusClient, httpx_mock: HTTPXMock):
+def test_label_names(client: PrometheusClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://localhost/api/v1/labels?start=1732402800.0&end=1732406400.0",
         method="GET",
         json={"data": ["__name__", "service.name"]},
     )
 
-    data = await client.label_names(
-        start=datetime(2024, 11, 24, 0), end=datetime(2024, 11, 24, 1),
+    data = client.label_names(
+        start=datetime(2024, 11, 24, 0),
+        end=datetime(2024, 11, 24, 1),
     )
     assert data == ["__name__", "service.name"]
 
 
-async def test_label_names_with_match(client: PrometheusClient, httpx_mock: HTTPXMock):
+def test_label_names_with_match(client: PrometheusClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://localhost/api/v1/labels?start=1732402800.0&end=1732406400.0&match=up",
         method="GET",
         json={"data": []},
     )
 
-    await client.label_names(
-        start=datetime(2024, 11, 24, 0), end=datetime(2024, 11, 24, 1), match=["up"],
+    client.label_names(
+        start=datetime(2024, 11, 24, 0),
+        end=datetime(2024, 11, 24, 1),
+        match=["up"],
     )
 
 
-async def test_label_names_with_limit(client: PrometheusClient, httpx_mock: HTTPXMock):
+def test_label_names_with_limit(client: PrometheusClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://localhost/api/v1/labels?start=1732402800.0&end=1732406400.0&limit=1",
         method="GET",
         json={"data": []},
     )
 
-    await client.label_names(
-        start=datetime(2024, 11, 24, 0), end=datetime(2024, 11, 24, 1), limit=1,
+    client.label_names(
+        start=datetime(2024, 11, 24, 0),
+        end=datetime(2024, 11, 24, 1),
+        limit=1,
     )
 
 
-async def test_label_values(client: PrometheusClient, httpx_mock: HTTPXMock):
+def test_label_values(client: PrometheusClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://localhost/api/v1/label/service.name/values?start=1732402800.0&end=1732406400.0",
         method="GET",
         json={"data": ["login", "user"]},
     )
 
-    data = await client.label_values(
+    data = client.label_values(
         label="service.name",
         start=datetime(2024, 11, 24, 0),
         end=datetime(2024, 11, 24, 1),
@@ -136,14 +142,14 @@ async def test_label_values(client: PrometheusClient, httpx_mock: HTTPXMock):
     assert data == ["login", "user"]
 
 
-async def test_label_values_with_match(client: PrometheusClient, httpx_mock: HTTPXMock):
+def test_label_values_with_match(client: PrometheusClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://localhost/api/v1/label/service.name/values?start=1732402800.0&end=1732406400.0&match=up",
         method="GET",
         json={"data": []},
     )
 
-    await client.label_values(
+    client.label_values(
         label="service.name",
         start=datetime(2024, 11, 24, 0),
         end=datetime(2024, 11, 24, 1),
@@ -151,14 +157,14 @@ async def test_label_values_with_match(client: PrometheusClient, httpx_mock: HTT
     )
 
 
-async def test_label_values_with_limit(client: PrometheusClient, httpx_mock: HTTPXMock):
+def test_label_values_with_limit(client: PrometheusClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://localhost/api/v1/label/service.name/values?start=1732402800.0&end=1732406400.0&limit=1",
         method="GET",
         json={"data": []},
     )
 
-    await client.label_values(
+    client.label_values(
         label="service.name",
         start=datetime(2024, 11, 24, 0),
         end=datetime(2024, 11, 24, 1),

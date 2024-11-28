@@ -1,13 +1,10 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence, Type
+from typing import Iterable, Sequence
 
 from claspin.database import Database
-from claspin.model.common import Plugin
-from claspin.model.datasource import DatasourcePlugin
-from claspin.model.query import TimeSeriesQueryPlugin
-from claspin.model.variable import ListVariablePlugin
+from claspin.plugins.interface import DatasourcePlugin, ListVariablePlugin, PanelPlugin, Plugin, TimeSeriesQueryPlugin
 
 STAR_SUFFIX = ".star"
 ABSOLUTE_PREFIX = "//"
@@ -28,22 +25,26 @@ class Workspace:
         self._log = logging.getLogger(__name__ + "." + self.__class__.__name__)
         self.root_dir = root_dir
         self.db = Database()
-        self._plugins: dict[str, Type[Plugin]] = {}
+        self._plugins: list[Plugin] = []
 
-    def add_plugin(self, plugin: Type[Plugin]) -> None:
-        self._plugins[plugin.kind()] = plugin
-
-    @property
-    def datasource_plugins(self) -> Sequence[Type[DatasourcePlugin]]:
-        return tuple(v for v in self._plugins.values() if issubclass(v, DatasourcePlugin))
+    def add_plugin(self, plugin: Plugin) -> None:
+        self._plugins.append(plugin)
 
     @property
-    def time_series_query_plugins(self) -> Sequence[Type[TimeSeriesQueryPlugin]]:
-        return tuple(v for v in self._plugins.values() if issubclass(v, TimeSeriesQueryPlugin))
+    def datasource_plugins(self) -> Sequence[DatasourcePlugin]:
+        return tuple(v for v in self._plugins if isinstance(v, DatasourcePlugin))
 
     @property
-    def list_variable_plugins(self) -> Sequence[Type[ListVariablePlugin]]:
-        return tuple(v for v in self._plugins.values() if issubclass(v, ListVariablePlugin))
+    def time_series_query_plugins(self) -> Sequence[TimeSeriesQueryPlugin]:
+        return tuple(v for v in self._plugins if isinstance(v, TimeSeriesQueryPlugin))
+
+    @property
+    def list_variable_plugins(self) -> Sequence[ListVariablePlugin]:
+        return tuple(v for v in self._plugins if isinstance(v, ListVariablePlugin))
+
+    @property
+    def panel_plugins(self) -> Sequence[PanelPlugin]:
+        return tuple(v for v in self._plugins if isinstance(v, PanelPlugin))
 
     def resolve_file(self, s: str, base: ConfigFile | None = None) -> ConfigFile:
         if s.startswith(ABSOLUTE_PREFIX):
